@@ -26,7 +26,9 @@ const DB_CODE_STATUS: Record<string, number> = {
 export function fromDbError(err: { message?: string; code?: string } | null): ApiError {
   const msg = err?.message ?? "Unknown error";
   const m = /^([A-Z_]+):(.*)$/s.exec(msg);
-  if (m && DB_CODE_STATUS[m[1]]) return new ApiError(DB_CODE_STATUS[m[1]], m[1], m[2].trim());
+  const dbCode = m?.[1] ?? "";
+  const dbStatus = DB_CODE_STATUS[dbCode];
+  if (m && dbStatus) return new ApiError(dbStatus, dbCode, (m[2] ?? "").trim());
   if (err?.code === "23505") {
     if (msg.includes("booking_tables_active_uniq")) return new ApiError(409, "TABLE_TAKEN", "มีโต๊ะที่เลือกถูกจองไปแล้ว");
     return new ApiError(409, "CONFLICT", "ข้อมูลซ้ำ (เช่น หมายเลขโต๊ะซ้ำในงานเดียวกัน)");
