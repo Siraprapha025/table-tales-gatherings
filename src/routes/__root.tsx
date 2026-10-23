@@ -11,6 +11,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import gatheringsCss from "../gatherings.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -78,16 +79,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "โต๊ะพร้อม — จัดงานเลี้ยงและจองโต๊ะจีน" },
+      {
+        name: "description",
+        content: "สร้างงานเลี้ยง จัดผังโต๊ะ แชร์ลิงก์จอง และจัดการผู้ร่วมงานในที่เดียว",
+      },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "โต๊ะพร้อม — จัดงานเลี้ยงและจองโต๊ะจีน" },
+      { property: "og:description", content: "ทุกที่นั่ง คือช่วงเวลาดี ๆ" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
+      { rel: "stylesheet", href: gatheringsCss },
       {
         rel: "stylesheet",
         href: appCss,
@@ -103,7 +108,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="th">
       <head>
         <HeadContent />
       </head>

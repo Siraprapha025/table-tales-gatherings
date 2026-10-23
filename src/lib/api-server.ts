@@ -3,7 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string, public details?: unknown) {
+  constructor(
+    public status: number,
+    public code: string,
+    message: string,
+    public details?: unknown,
+  ) {
     super(message);
   }
 }
@@ -30,10 +35,19 @@ export function fromDbError(err: { message?: string; code?: string } | null): Ap
   const dbStatus = DB_CODE_STATUS[dbCode];
   if (m && dbStatus) return new ApiError(dbStatus, dbCode, (m[2] ?? "").trim());
   if (err?.code === "23505") {
-    if (msg.includes("booking_tables_active_uniq")) return new ApiError(409, "TABLE_TAKEN", "มีโต๊ะที่เลือกถูกจองไปแล้ว");
+    if (msg.includes("booking_tables_active_uniq"))
+      return new ApiError(409, "TABLE_TAKEN", "มีโต๊ะที่เลือกถูกจองไปแล้ว");
+    if (msg.includes("payment_") || msg.includes("manual_refunds"))
+      return new ApiError(
+        409,
+        "CONFLICT",
+        "สลิปหรือเลขอ้างอิงธนาคารนี้เคยใช้แล้ว กรุณาตรวจรายการเดิม",
+      );
     return new ApiError(409, "CONFLICT", "ข้อมูลซ้ำ (เช่น หมายเลขโต๊ะซ้ำในงานเดียวกัน)");
   }
   if (err?.code === "42501") return new ApiError(403, "FORBIDDEN", "ไม่มีสิทธิ์");
+  if (err?.code === "23503")
+    return new ApiError(409, "HAS_HISTORY", "โต๊ะนี้มีประวัติการจอง กรุณาปิดใช้งานแทนการลบ");
   console.error("db error", err?.code, msg);
   return new ApiError(500, "INTERNAL", "เกิดข้อผิดพลาดภายในระบบ");
 }
@@ -41,7 +55,11 @@ export function fromDbError(err: { message?: string; code?: string } | null): Ap
 export function json(data: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      ...headers,
+    },
   });
 }
 
@@ -50,7 +68,12 @@ export async function handle(fn: () => Promise<Response>): Promise<Response> {
     return await fn();
   } catch (e) {
     if (e instanceof ApiError) {
-      return json({ error: { code: e.code, message: e.message, ...(e.details ? { details: e.details } : {}) } }, e.status);
+      return json(
+        {
+          error: { code: e.code, message: e.message, ...(e.details ? { details: e.details } : {}) },
+        },
+        e.status,
+      );
     }
     console.error("api error", e instanceof Error ? e.message : e);
     return json({ error: { code: "INTERNAL", message: "เกิดข้อผิดพลาดภายในระบบ" } }, 500);
@@ -65,10 +88,24 @@ export async function readJson(request: Request): Promise<unknown> {
   }
 }
 
-export function parse<T>(schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: { issues: { path: (string | number)[]; message: string }[] } } }, value: unknown): T {
+export function parse<T>(
+  schema: {
+    safeParse: (
+      v: unknown,
+    ) =>
+      | { success: true; data: T }
+      | { success: false; error: { issues: { path: (string | number)[]; message: string }[] } };
+  },
+  value: unknown,
+): T {
   const r = schema.safeParse(value);
   if (!r.success) {
-    throw new ApiError(400, "VALIDATION", "ข้อมูลไม่ถูกต้อง", r.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })));
+    throw new ApiError(
+      400,
+      "VALIDATION",
+      "ข้อมูลไม่ถูกต้อง",
+      r.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
+    );
   }
   return r.data;
 }
@@ -82,7 +119,12 @@ export async function admin() {
 export async function asUser(request: Request) {
   const auth = request.headers.get("authorization") ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  if (!token) throw new ApiError(401, "UNAUTHORIZED", "ต้องเข้าสู่ระบบ (Authorization: Bearer <access_token>)");
+  if (!token)
+    throw new ApiError(
+      401,
+      "UNAUTHORIZED",
+      "ต้องเข้าสู่ระบบ (Authorization: Bearer <access_token>)",
+    );
   const url = process.env["SUPABASE_URL"]!;
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
   const sb = createClient<Database>(url, key, {
@@ -98,7 +140,10 @@ export async function asUser(request: Request) {
   });
   const { data, error } = await sb.auth.getUser(token);
   if (error || !data.user) throw new ApiError(401, "UNAUTHORIZED", "Session หมดอายุหรือไม่ถูกต้อง");
-  const { data: isManager } = await sb.rpc("has_role", { _user_id: data.user.id, _role: "manager" });
+  const { data: isManager } = await sb.rpc("has_role", {
+    _user_id: data.user.id,
+    _role: "manager",
+  });
   if (!isManager) throw new ApiError(403, "FORBIDDEN", "บัญชีนี้ไม่มีสิทธิ์ผู้จัดการ");
   return { sb, userId: data.user.id };
 }
@@ -121,17 +166,35 @@ export function bookingCode(): string {
   return "TP-" + [...a].map((b) => alphabet[b % alphabet.length]).join("");
 }
 
-export async function rateLimit(request: Request, bucket: string, max: number, windowSeconds: number) {
-  const ip = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+export async function rateLimit(
+  request: Request,
+  bucket: string,
+  max: number,
+  windowSeconds: number,
+) {
+  const ip =
+    request.headers.get("cf-connecting-ip") ??
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    "local";
   const key = `${bucket}:${await sha256Hex(ip)}`;
   const sb = await admin();
-  const { data, error } = await sb.rpc("rate_limit_hit", { _key: key, _max: max, _window_seconds: windowSeconds });
-  if (error) return; // fail open on limiter errors
+  const { data, error } = await sb.rpc("rate_limit_hit", {
+    _key: key,
+    _max: max,
+    _window_seconds: windowSeconds,
+  });
+  if (error)
+    throw new ApiError(
+      503,
+      "RATE_LIMIT_UNAVAILABLE",
+      "ระบบตรวจสอบคำขอยังไม่พร้อม กรุณาลองใหม่ภายหลัง",
+    );
   if (data) throw new ApiError(429, "RATE_LIMITED", "ส่งคำขอถี่เกินไป กรุณารอสักครู่");
 }
 
 export function manageTokenFrom(request: Request): string {
   const t = request.headers.get("x-manage-token") ?? "";
-  if (t.length < 20 || t.length > 200) throw new ApiError(401, "INVALID_TOKEN", "ลิงก์จัดการการจองไม่ถูกต้อง");
+  if (t.length < 20 || t.length > 200)
+    throw new ApiError(401, "INVALID_TOKEN", "ลิงก์จัดการการจองไม่ถูกต้อง");
   return t;
 }
