@@ -1272,3 +1272,76 @@
     animation: none;
   }
 }
+.event-schedule .schedule-field {
+  min-width: 0;
+  border: 1px solid #e4d9ca;
+  padding: 16px;
+  border-radius: 12px;
+  margin: 12px 0;
+  display: grid;
+  gap: 10px;
+}
+.event-schedule legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+.thai-date-parts {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) minmax(130px, 2fr) minmax(100px, 1fr);
+  gap: 8px;
+}
+.thai-time-parts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.gatherings .thai-time-parts select {
+  width: 90px;
+}
+.time-reading {
+  display: block;
+  margin-top: 6px;
+  color: #594a37;
+  font-weight: 600;
+}
+.schedule-summary {
+  background: #f0f6ed;
+  border-radius: 12px;
+  padding: 16px;
+  margin-block: 16px;
+  line-height: 1.7;
+}
+.schedule-tip,
+.event-schedule .field-error {
+  color: #b42318;
+  background: #fff0ec;
+  border-radius: 8px;
+  padding: 8px;
+}
+.event-schedule .field-invalid {
+  border-color: #b42318;
+}
+.event-review {
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+.review-details dl {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 8px;
+  margin-block: 16px;
+}
+.review-details dt {
+  color: #695e52;
+}
+.review-details dd {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 420px) {
+  .thai-date-parts {
+    grid-template-columns: 1fr 1.5fr;
+  }
+  .thai-date-parts select:last-child {
+    grid-column: 1 / -1;
+  }
+}

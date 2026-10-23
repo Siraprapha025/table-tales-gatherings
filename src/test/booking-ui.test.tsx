@@ -60,6 +60,8 @@ describe("Manager event editor", () => {
     } as unknown as Event;
     render(<EventForm event={event} busy={false} onSave={save} onBack={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "บันทึกการแก้ไข" }));
+    expect(save).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "ยืนยันบันทึก" }));
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
     expect(save.mock.calls[0]![0].starts_at).toBe("2026-12-20T11:00:00.000Z");
     expect(save.mock.calls[0]![0]).not.toHaveProperty("owner_id");

@@ -1,6 +1,18 @@
+import { EventSchedule } from "./event-schedule";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import type { z } from "zod";
 import { BankPicker } from "./bank-picker";
 import { useState, useRef } from "react";
-import { bangkokLocalToISO, isoToBangkokLocal } from "@/lib/event-rules";
+import { bangkokLocalToISO, formatThaiDateTime } from "@/lib/event-rules";
 import { eventInput, type Event } from "@/lib/contracts";
 import { Field, Notice, FieldErrors } from "./common";
 export function EventForm({
@@ -16,6 +28,8 @@ export function EventForm({
 }) {
   const [mode, setMode] = useState(event?.payment_mode ?? "none");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [review, setReview] = useState<z.infer<typeof eventInput> | null>(null);
+  const dirty = useRef(false);
   const attempted = useRef(false);
   const touched = useRef(new Set<string>());
   function validate(form: HTMLFormElement) {
@@ -73,6 +87,12 @@ export function EventForm({
       else if (el.validity.typeMismatch || el.validity.badInput || el.validity.patternMismatch)
         next[el.name] = "รูปแบบข้อมูลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง";
     }
+    if (next["balance_due_at"] && body.booking_closes_at && body.starts_at)
+      next["balance_due_at"] =
+        `เลือกวันชำระตั้งแต่ ${formatThaiDateTime(body.booking_closes_at)} ถึง ${formatThaiDateTime(body.starts_at)} หากต้องการรับจองต่อให้ปรับวันหยุดรับจองด้วย`;
+    if (next["booking_closes_at"] && body.booking_opens_at && body.ends_at)
+      next["booking_closes_at"] =
+        `เลือกเวลาหยุดรับจองหลัง ${formatThaiDateTime(body.booking_opens_at)} และไม่เกิน ${formatThaiDateTime(body.ends_at)}`;
     setErrors(
       attempted.current
         ? next
@@ -87,13 +107,20 @@ export function EventForm({
         className="panel event-form"
         onBlur={(e) => {
           const el = e.target as unknown as HTMLInputElement;
-          if (el.name) {
-            touched.current.add(el.name);
+          const field =
+            el.name || el.closest<HTMLElement>("[data-field-name]")?.dataset["fieldName"];
+          if (field) {
+            touched.current.add(field);
             validate(e.currentTarget);
           }
         }}
         onChange={(e) => {
-          validate(e.currentTarget);
+          dirty.current = true;
+          setReview(null);
+          const form = e.currentTarget;
+          queueMicrotask(() => {
+            if (form.isConnected) validate(form);
+          });
         }}
         onSubmit={(e) => {
           e.preventDefault();
@@ -102,13 +129,15 @@ export function EventForm({
           if (Object.keys(next).length || !result.success) {
             const first = Object.keys(next)[0];
             const target = Array.from(
-              e.currentTarget.querySelectorAll<HTMLElement>("[name], [data-field-name]"),
+              e.currentTarget.querySelectorAll<HTMLElement>(
+                "[data-field-name], [name]:not([type=hidden])",
+              ),
             ).find((el) => el.getAttribute("name") === first || el.dataset["fieldName"] === first);
             target?.focus();
             target?.scrollIntoView?.({ behavior: "smooth", block: "center" });
             return;
           }
-          onSave(result.data);
+          setReview(result.data);
         }}
       >
         <div className="section-heading">
@@ -116,7 +145,17 @@ export function EventForm({
             <span className="eyebrow">EVENT DETAILS</span>
             <h2>{event ? "แก้ไขรายละเอียดงาน" : "เริ่มต้นงานเลี้ยงของคุณ"}</h2>
           </div>
-          <button type="button" className="button secondary" onClick={onBack}>
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() => {
+              if (
+                !dirty.current ||
+                window.confirm("ยังไม่ได้บันทึกการแก้ไข ต้องการออกจากหน้านี้หรือไม่?")
+              )
+                onBack();
+            }}
+          >
             กลับ
           </button>
         </div>
@@ -141,30 +180,8 @@ export function EventForm({
           <Field label="รายละเอียดงาน">
             <textarea name="description" maxLength={5000} defaultValue={event?.description} />
           </Field>
-          <h3>วันเวลา · เวลาไทย (GMT+7)</h3>
-          <p className="muted">
-            เริ่มและจบวันเดียวกันได้ เช่น 08:00 AM → 12:00 PM (08:00–12:00 น.) • AM = ก่อนเที่ยง, PM
-            = หลังเที่ยง • 12:00 AM = เที่ยงคืน, 12:00 PM = เที่ยงวัน
-          </p>
+          <EventSchedule event={event} paid={mode === "required"} />
           <div className="form-grid">
-            {(
-              [
-                ["starts_at", "เริ่มงาน *"],
-                ["ends_at", "สิ้นสุดงาน *"],
-                ["booking_opens_at", "เปิดรับจอง *"],
-                ["booking_closes_at", "ปิดรับจอง *"],
-                ["cancel_deadline", "กำหนดขอยกเลิก"],
-              ] as const
-            ).map(([key, label]) => (
-              <Field key={key} label={label}>
-                <input
-                  type="datetime-local"
-                  name={key}
-                  required={key !== "cancel_deadline"}
-                  defaultValue={isoToBangkokLocal(event?.[key])}
-                />
-              </Field>
-            ))}
             <Field label="จำนวนผู้ร่วมงานสูงสุด">
               <input
                 type="number"
@@ -269,14 +286,6 @@ export function EventForm({
                     defaultValue={event?.deposit_hours ?? 24}
                   />
                 </Field>
-                <Field label="กำหนดชำระส่วนที่เหลือ · เวลาไทย">
-                  <input
-                    name="balance_due_at"
-                    type="datetime-local"
-                    required
-                    defaultValue={isoToBangkokLocal(event?.balance_due_at)}
-                  />
-                </Field>
               </div>
               <Field label="เงื่อนไขยกเลิกและคืนเงิน">
                 <textarea
@@ -300,6 +309,83 @@ export function EventForm({
           </button>
         </fieldset>
       </form>
+      <AlertDialog
+        open={!!review}
+        onOpenChange={(open) => {
+          if (!open) setReview(null);
+        }}
+      >
+        <AlertDialogContent className="event-review">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              ตรวจรายละเอียดก่อน{event ? "บันทึกการแก้ไข" : "สร้างงาน"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ตรวจวันเวลาและบัญชีรับเงินอีกครั้ง หากยังไม่ถูกต้องให้กลับไปแก้ไข
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {review && (
+            <div className="review-details">
+              <strong>{review.title}</strong>
+              <dl>
+                <dt>เริ่มงาน</dt>
+                <dd>{formatThaiDateTime(review.starts_at)}</dd>
+                <dt>เลิกงาน</dt>
+                <dd>{formatThaiDateTime(review.ends_at)}</dd>
+                <dt>เริ่มรับจองได้ตั้งแต่</dt>
+                <dd>{formatThaiDateTime(review.booking_opens_at)} (ต้องเผยแพร่งานก่อน)</dd>
+                <dt>หยุดรับจอง</dt>
+                <dd>{formatThaiDateTime(review.booking_closes_at)}</dd>
+                <dt>ขอยกเลิกได้ถึง</dt>
+                <dd>
+                  {review.cancel_deadline
+                    ? formatThaiDateTime(review.cancel_deadline)
+                    : "ไม่กำหนดวันสุดท้าย"}
+                </dd>
+                {review.payment_mode === "required" ? (
+                  <>
+                    <dt>บัญชีรับเงิน</dt>
+                    <dd>
+                      {review.bank_name} · {review.bank_account_name} · {review.bank_account_number}
+                    </dd>
+                    <dt>มัดจำ</dt>
+                    <dd>
+                      {review.deposit_percent}% ภายใน {review.deposit_hours} ชั่วโมงหลังจอง
+                    </dd>
+                    <dt>จ่ายส่วนที่เหลือภายใน</dt>
+                    <dd>{formatThaiDateTime(review.balance_due_at)}</dd>
+                  </>
+                ) : (
+                  <>
+                    <dt>การชำระเงิน</dt>
+                    <dd>ไม่เก็บเงิน</dd>
+                  </>
+                )}
+              </dl>
+              {event?.status === "published" && (
+                <p>
+                  งานนี้เผยแพร่แล้ว การแก้ไขจะเปลี่ยนข้อมูลที่ผู้จองใหม่เห็น กรุณาตรวจสอบก่อนยืนยัน
+                </p>
+              )}
+              {!event && <p>บันทึกเป็นร่างก่อน ยังไม่เปิดให้ลูกค้าจอง</p>}
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>กลับไปแก้ไข</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={() => {
+                if (review) {
+                  onSave(review);
+                  setReview(null);
+                }
+              }}
+            >
+              ยืนยันบันทึก
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </FieldErrors.Provider>
   );
 }
