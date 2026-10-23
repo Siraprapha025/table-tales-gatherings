@@ -111,10 +111,29 @@ export const eventInput = z
   })
   .strict()
   .superRefine((v, ctx) => {
-    for (const message of validateEventTimes(v)) ctx.addIssue({ code: "custom", message });
+    for (const message of validateEventTimes(v)) {
+      const field = message.includes("สิ้นสุดงานต้อง")
+        ? "ends_at"
+        : message.includes("ยกเลิก")
+          ? "cancel_deadline"
+          : "booking_closes_at";
+      ctx.addIssue({ code: "custom", path: [field], message });
+    }
     if (v.payment_mode === "required") {
-      if (!v.bank_name || !v.bank_account_name || !/^[0-9 -]{8,30}$/.test(v.bank_account_number))
-        ctx.addIssue({ code: "custom", message: "กรุณากรอกธนาคาร ชื่อบัญชี และเลขบัญชีให้ครบ" });
+      if (!v.bank_name)
+        ctx.addIssue({ code: "custom", path: ["bank_name"], message: "กรุณาเลือกธนาคาร" });
+      if (!v.bank_account_name)
+        ctx.addIssue({
+          code: "custom",
+          path: ["bank_account_name"],
+          message: "กรุณากรอกชื่อบัญชี",
+        });
+      if (!/^[0-9 -]{8,30}$/.test(v.bank_account_number))
+        ctx.addIssue({
+          code: "custom",
+          path: ["bank_account_number"],
+          message: "กรอกเลขบัญชีให้ครบ ใช้ตัวเลข เว้นวรรค หรือขีดเท่านั้น",
+        });
       if (
         !v.balance_due_at ||
         Date.parse(v.balance_due_at) < Date.parse(v.booking_closes_at) ||
@@ -122,10 +141,15 @@ export const eventInput = z
       )
         ctx.addIssue({
           code: "custom",
+          path: ["balance_due_at"],
           message: "กำหนดชำระส่วนที่เหลือต้องไม่ก่อนปิดรับจองและไม่หลังเริ่มงาน",
         });
       if (v.refund_policy.length < 5)
-        ctx.addIssue({ code: "custom", message: "กรุณาระบุเงื่อนไขยกเลิกและคืนเงิน" });
+        ctx.addIssue({
+          code: "custom",
+          path: ["refund_policy"],
+          message: "กรุณาระบุเงื่อนไขยกเลิกและคืนเงินอย่างน้อย 5 ตัวอักษร",
+        });
     }
   });
 export const tableInput = z

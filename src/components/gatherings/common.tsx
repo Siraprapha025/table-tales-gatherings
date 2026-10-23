@@ -1,4 +1,13 @@
-import { useState, type ReactNode } from "react";
+import {
+  useState,
+  createContext,
+  useContext,
+  useId,
+  Children,
+  isValidElement,
+  cloneElement,
+  type ReactNode,
+} from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Armchair, ArrowUpRight, Copy, Check } from "lucide-react";
 export function Brand() {
@@ -44,12 +53,47 @@ export function Notice({ children, error = false }: { children: ReactNode; error
 export function Empty({ children }: { children: ReactNode }) {
   return <div className="empty-state">{children}</div>;
 }
+export const FieldErrors = createContext<Record<string, string>>({});
 export function Field({ label, children }: { label: string; children: ReactNode }) {
+  const errors = useContext(FieldErrors);
+  const uid = useId();
+  const control = Children.toArray(children).find(
+    (child) => isValidElement<{ name?: string }>(child) && child.props.name,
+  );
+  const name = isValidElement<{ name?: string }>(control) ? control.props.name : undefined;
+  const error = name ? errors[name] : undefined;
+  if (!name)
+    return (
+      <label className="field">
+        <span>{label}</span>
+        {children}
+      </label>
+    );
   return (
-    <label className="field">
-      <span>{label}</span>
-      {children}
-    </label>
+    <div className={`field ${error ? "field-invalid" : ""}`}>
+      <label htmlFor={uid}>{label}</label>
+      {Children.map(children, (child) =>
+        isValidElement<{
+          name?: string;
+          id?: string;
+          "aria-invalid"?: boolean;
+          "aria-describedby"?: string | undefined;
+        }>(child) &&
+        (child === control || child.props.name === name) &&
+        name
+          ? cloneElement(child, {
+              id: uid,
+              "aria-invalid": !!error,
+              "aria-describedby": error ? `${uid}-error` : undefined,
+            })
+          : child,
+      )}
+      {error && (
+        <span id={`${uid}-error`} className="field-error" role="alert">
+          ⚠ {error}
+        </span>
+      )}
+    </div>
   );
 }
 export function Share({ url, label }: { url: string; label: string }) {

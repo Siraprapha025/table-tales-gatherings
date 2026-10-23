@@ -1200,3 +1200,75 @@
 .payment-row form {
   margin-top: 1rem;
 }
+.gatherings .field > label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.gatherings .field-invalid input:not([type="hidden"]),
+.gatherings .field-invalid textarea,
+.gatherings .field-invalid select,
+.gatherings .field-invalid .bank-trigger {
+  border: 1.5px solid #b42318;
+  background-color: #fff8f6;
+}
+.gatherings .field-invalid input:focus,
+.gatherings .field-invalid textarea:focus,
+.gatherings .field-invalid select:focus,
+.gatherings .field-invalid .bank-trigger:focus {
+  outline: 2px solid #fda29b;
+  outline-offset: 2px;
+}
+.gatherings .field .field-error {
+  display: block;
+  color: #b42318;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.5;
+  background: #fff0ec;
+  border-radius: 6px;
+  padding: 6px 10px;
+  animation: field-feedback 0.15s ease-out;
+}
+.gatherings .bank-trigger {
+  height: auto;
+  min-height: 56px;
+  border: 1px solid #e4d9ca;
+  border-radius: 12px;
+  background: white;
+  text-align: left;
+  padding: 10px 14px;
+}
+.bank-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: normal;
+}
+.bank-option img {
+  flex-shrink: 0;
+  border-radius: 7px;
+  padding: 5px;
+  width: 32px;
+  height: 32px;
+}
+.bank-menu {
+  max-width: calc(100vw - 32px);
+}
+.bank-picker > input:not([type="hidden"]) {
+  margin-top: 8px;
+}
+@keyframes field-feedback {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gatherings .field .field-error {
+    animation: none;
+  }
+}
