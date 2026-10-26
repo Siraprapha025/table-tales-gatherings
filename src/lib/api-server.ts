@@ -33,6 +33,20 @@ export function fromDbError(err: { message?: string; code?: string } | null): Ap
   const m = /^([A-Z_]+):(.*)$/s.exec(msg);
   const dbCode = m?.[1] ?? "";
   const dbStatus = DB_CODE_STATUS[dbCode];
+
+  if (["42703", "42P01", "42883", "PGRST202", "PGRST204", "PGRST205"].includes(err?.code ?? "")) {
+    return new ApiError(
+      503,
+      "DATABASE_SETUP_REQUIRED",
+      "ฐานข้อมูลยังไม่พร้อมสำหรับโค้ดรุ่นนี้: ไม่พบตาราง คอลัมน์ หรือฟังก์ชันที่ระบบต้องใช้ ต้องตรวจและติดตั้ง SQL migration ในฐานข้อมูลของโปรเจกต์ก่อน การ Push โค้ดอย่างเดียวไม่เพิ่มโครงสร้างฐานข้อมูล",
+    );
+  }
+  if (dbCode === "INVALID_STATE" && msg.includes("ระบบชำระเงินยังไม่เปิดใช้งาน"))
+    return new ApiError(
+      503,
+      "DATABASE_SETUP_REQUIRED",
+      "ฐานข้อมูลยังเป็นรุ่นที่ไม่รองรับการรับเงิน ต้องติดตั้ง migration ระบบรับเงินก่อนสร้างงานแบบเก็บเงิน",
+    );
   if (m && dbStatus) return new ApiError(dbStatus, dbCode, (m[2] ?? "").trim());
   if (err?.code === "23505") {
     if (msg.includes("booking_tables_active_uniq"))

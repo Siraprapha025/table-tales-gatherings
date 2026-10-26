@@ -22,13 +22,16 @@ export function EventForm({
   busy,
 }: {
   event?: Event;
-  onSave: (data: unknown) => void;
+  onSave: (data: unknown) => void | Promise<void>;
   onBack: () => void;
   busy: boolean;
 }) {
   const [mode, setMode] = useState(event?.payment_mode ?? "none");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [review, setReview] = useState<z.infer<typeof eventInput> | null>(null);
+  const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const savingLock = useRef(false);
   const dirty = useRef(false);
   const attempted = useRef(false);
   const touched = useRef(new Set<string>());
@@ -137,6 +140,7 @@ export function EventForm({
             target?.scrollIntoView?.({ behavior: "smooth", block: "center" });
             return;
           }
+          setSaveError("");
           setReview(result.data);
         }}
       >
@@ -312,7 +316,7 @@ export function EventForm({
       <AlertDialog
         open={!!review}
         onOpenChange={(open) => {
-          if (!open) setReview(null);
+          if (!open && !savingLock.current) setReview(null);
         }}
       >
         <AlertDialogContent className="event-review">
@@ -370,18 +374,36 @@ export function EventForm({
               {!event && <p>บันทึกเป็นร่างก่อน ยังไม่เปิดให้ลูกค้าจอง</p>}
             </div>
           )}
+          {saveError && (
+            <div role="alert" className="notice notice-error">
+              {saveError}
+            </div>
+          )}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>กลับไปแก้ไข</AlertDialogCancel>
+            <AlertDialogCancel disabled={busy || saving}>กลับไปแก้ไข</AlertDialogCancel>
             <AlertDialogAction
-              disabled={busy}
-              onClick={() => {
-                if (review) {
-                  onSave(review);
+              disabled={busy || saving}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!review || savingLock.current) return;
+                savingLock.current = true;
+                setSaving(true);
+                setSaveError("");
+                try {
+                  await onSave(review);
+                  dirty.current = false;
                   setReview(null);
+                } catch (error) {
+                  setSaveError(
+                    error instanceof Error ? error.message : "บันทึกไม่สำเร็จ กรุณาลองใหม่",
+                  );
+                } finally {
+                  savingLock.current = false;
+                  setSaving(false);
                 }
               }}
             >
-              ยืนยันบันทึก
+              {saving ? "กำลังบันทึก…" : "ยืนยันบันทึก"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

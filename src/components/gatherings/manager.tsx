@@ -119,8 +119,12 @@ export function ManagerPage() {
       .catch(() => setDeveloper(false));
   }, [accessToken]);
   async function saveEvent(body: unknown) {
-    await run(async () => {
-      const ev = await api<Event>(
+    setBusy(true);
+    setError("");
+    setMessage("");
+    let saved: Event;
+    try {
+      saved = await api<Event>(
         detail && view === "edit" ? `/manager/events/${detail.event.id}` : "/manager/events",
         {
           method: detail && view === "edit" ? "PATCH" : "POST",
@@ -128,11 +132,24 @@ export function ManagerPage() {
           accessToken,
         },
       );
+    } catch (e) {
+      setBusy(false);
+      throw e;
+    }
+    // A successful write must not be presented as a failed save if refreshing the view fails.
+    setView("list");
+    setMessage("บันทึกงานแล้ว เพิ่มโต๊ะและเผยแพร่เพื่อรับจองได้เลย");
+    try {
       await loadList();
-      await loadDetail(ev.id);
+      await loadDetail(saved.id);
       setView("detail");
-      setMessage("บันทึกรายละเอียดแล้ว เพิ่มโต๊ะและเผยแพร่เพื่อรับจองได้เลย");
-    });
+    } catch {
+      setError(
+        "บันทึกงานสำเร็จแล้ว แต่โหลดหน้ารายการไม่สำเร็จ กรุณาอัปเดตรายการงาน ไม่ต้องสร้างงานซ้ำ",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   async function updateTable(t: Table, changes: Partial<Table>) {
     const { number, name, zone, capacity, x, y, status } = t;
@@ -382,7 +399,7 @@ export function ManagerPage() {
               <EventForm
                 {...(view === "edit" && ev ? { event: ev } : {})}
                 busy={busy}
-                onSave={(body) => void saveEvent(body)}
+                onSave={saveEvent}
                 onBack={() => setView(view === "edit" ? "detail" : "list")}
               />
             )}

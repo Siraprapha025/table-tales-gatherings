@@ -117,3 +117,19 @@ it("keeps preset deadlines aligned when the event date changes", () => {
   expect(values().get("cancel_deadline")).toBe("2027-03-01T08:00");
   expect(values().get("balance_due_at")).toBe("2027-03-02T08:00");
 });
+
+it("keeps the reviewed data visible when saving fails and permits an explicit retry", async () => {
+  const save = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("ฐานข้อมูลยังไม่พร้อม"))
+    .mockResolvedValueOnce(undefined);
+  render(<EventForm event={morning} busy={false} onSave={save} onBack={() => {}} />);
+  fireEvent.click(screen.getByRole("button", { name: "บันทึกการแก้ไข" }));
+  fireEvent.click(screen.getByRole("button", { name: "ยืนยันบันทึก" }));
+  await screen.findByText("ฐานข้อมูลยังไม่พร้อม");
+  expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "ยืนยันบันทึก" }));
+  await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+  expect(save).toHaveBeenCalledTimes(2);
+  expect(save.mock.calls[0]![0]).toEqual(save.mock.calls[1]![0]);
+});
