@@ -1,11 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ManagerPage } from "@/components/gatherings/manager";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
   component: Index,
+  head: () => ({ meta: [
+    { title: "โต๊ะพร้อม | จัดการงานและการจองโต๊ะ" },
+    { name: "description", content: "จัดการงานเลี้ยง ผังโต๊ะ การจอง และรายการรับเงินด้วยโต๊ะพร้อม" },
+    { property: "og:title", content: "โต๊ะพร้อม | จัดการงานและการจองโต๊ะ" },
+    { property: "og:description", content: "จัดการงานเลี้ยง ผังโต๊ะ การจอง และรายการรับเงินด้วยโต๊ะพร้อม" },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+  ] }),
 });
 
 // IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.

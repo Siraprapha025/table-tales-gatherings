@@ -37,7 +37,7 @@ export function BankPicker({
   const [other, setOther] = useState(known ? "" : defaultValue);
   return (
     <div className="bank-picker">
-      <Select value={selected} onValueChange={setSelected} disabled={disabled}>
+      <Select value={selected} onValueChange={setSelected} disabled={disabled ?? false}>
         <SelectTrigger
           id={id}
           name={name}

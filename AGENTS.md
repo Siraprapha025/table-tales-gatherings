@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Apply application schema changes through managed migrations; configure storage buckets separately because bucket rows are managed platform resources.
+- Keep nullable payment RPC arguments in the payment client type override, replacing generated signatures rather than intersecting them, because generated PostgreSQL types do not capture nullable arguments.

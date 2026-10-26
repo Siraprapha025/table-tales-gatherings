@@ -150,12 +150,16 @@ export type Database = {
       }
       bookings: {
         Row: {
+          balance_due_at: string | null
+          bank_snapshot: Json | null
           cancelled_at: string | null
           cancelled_by: string | null
           code: string
           contact: string | null
           created_at: string
           currency: string
+          deposit_due_at: string | null
+          deposit_due_satang: number
           event_id: string
           expires_at: string | null
           guest_count: number
@@ -164,18 +168,25 @@ export type Database = {
           idempotency_key: string
           manage_token_hash: string
           organization: string | null
+          paid_satang: number
           payment_status: Database["public"]["Enums"]["payment_status"]
+          refund_policy_snapshot: string
+          refunded_satang: number
           request_hash: string
           status: Database["public"]["Enums"]["booking_status"]
           total_satang: number
         }
         Insert: {
+          balance_due_at?: string | null
+          bank_snapshot?: Json | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           code: string
           contact?: string | null
           created_at?: string
           currency?: string
+          deposit_due_at?: string | null
+          deposit_due_satang?: number
           event_id: string
           expires_at?: string | null
           guest_count: number
@@ -184,18 +195,25 @@ export type Database = {
           idempotency_key: string
           manage_token_hash: string
           organization?: string | null
+          paid_satang?: number
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          refund_policy_snapshot?: string
+          refunded_satang?: number
           request_hash: string
           status?: Database["public"]["Enums"]["booking_status"]
           total_satang?: number
         }
         Update: {
+          balance_due_at?: string | null
+          bank_snapshot?: Json | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           code?: string
           contact?: string | null
           created_at?: string
           currency?: string
+          deposit_due_at?: string | null
+          deposit_due_satang?: number
           event_id?: string
           expires_at?: string | null
           guest_count?: number
@@ -204,7 +222,10 @@ export type Database = {
           idempotency_key?: string
           manage_token_hash?: string
           organization?: string | null
+          paid_satang?: number
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          refund_policy_snapshot?: string
+          refunded_satang?: number
           request_hash?: string
           status?: Database["public"]["Enums"]["booking_status"]
           total_satang?: number
@@ -362,6 +383,10 @@ export type Database = {
       events: {
         Row: {
           announcement: string
+          balance_due_at: string | null
+          bank_account_name: string
+          bank_account_number: string
+          bank_name: string
           booking_closes_at: string
           booking_opens_at: string
           cancel_deadline: string | null
@@ -369,6 +394,8 @@ export type Database = {
           contact_required: boolean
           cover_url: string | null
           created_at: string
+          deposit_hours: number
+          deposit_percent: number
           description: string
           ends_at: string
           id: string
@@ -382,6 +409,7 @@ export type Database = {
           payment_mode: string
           public_slug: string | null
           published_at: string | null
+          refund_policy: string
           schedule: string
           starts_at: string
           status: Database["public"]["Enums"]["event_status"]
@@ -393,6 +421,10 @@ export type Database = {
         }
         Insert: {
           announcement?: string
+          balance_due_at?: string | null
+          bank_account_name?: string
+          bank_account_number?: string
+          bank_name?: string
           booking_closes_at: string
           booking_opens_at: string
           cancel_deadline?: string | null
@@ -400,6 +432,8 @@ export type Database = {
           contact_required?: boolean
           cover_url?: string | null
           created_at?: string
+          deposit_hours?: number
+          deposit_percent?: number
           description?: string
           ends_at: string
           id?: string
@@ -413,6 +447,7 @@ export type Database = {
           payment_mode?: string
           public_slug?: string | null
           published_at?: string | null
+          refund_policy?: string
           schedule?: string
           starts_at: string
           status?: Database["public"]["Enums"]["event_status"]
@@ -424,6 +459,10 @@ export type Database = {
         }
         Update: {
           announcement?: string
+          balance_due_at?: string | null
+          bank_account_name?: string
+          bank_account_number?: string
+          bank_name?: string
           booking_closes_at?: string
           booking_opens_at?: string
           cancel_deadline?: string | null
@@ -431,6 +470,8 @@ export type Database = {
           contact_required?: boolean
           cover_url?: string | null
           created_at?: string
+          deposit_hours?: number
+          deposit_percent?: number
           description?: string
           ends_at?: string
           id?: string
@@ -444,6 +485,7 @@ export type Database = {
           payment_mode?: string
           public_slug?: string | null
           published_at?: string | null
+          refund_policy?: string
           schedule?: string
           starts_at?: string
           status?: Database["public"]["Enums"]["event_status"]
@@ -476,6 +518,63 @@ export type Database = {
         }
         Relationships: []
       }
+      manual_refunds: {
+        Row: {
+          amount_satang: number
+          bank_reference: string
+          booking_id: string
+          created_at: string
+          event_id: string
+          id: string
+          note: string
+          owner_id: string
+          paid_at: string
+          recorded_by: string
+          request_id: string
+        }
+        Insert: {
+          amount_satang: number
+          bank_reference: string
+          booking_id: string
+          created_at?: string
+          event_id: string
+          id?: string
+          note: string
+          owner_id: string
+          paid_at: string
+          recorded_by: string
+          request_id: string
+        }
+        Update: {
+          amount_satang?: number
+          bank_reference?: string
+          booking_id?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          note?: string
+          owner_id?: string
+          paid_at?: string
+          recorded_by?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_refunds_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_refunds_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       participating_organizations: {
         Row: {
           created_at: string
@@ -498,6 +597,75 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "participating_organizations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_submissions: {
+        Row: {
+          amount_satang: number
+          bank_reference: string | null
+          booking_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          event_id: string
+          id: string
+          owner_id: string
+          paid_at: string
+          proof_hash: string
+          proof_path: string
+          request_id: string
+          status: string
+        }
+        Insert: {
+          amount_satang: number
+          bank_reference?: string | null
+          booking_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          event_id: string
+          id?: string
+          owner_id: string
+          paid_at: string
+          proof_hash: string
+          proof_path: string
+          request_id: string
+          status?: string
+        }
+        Update: {
+          amount_satang?: number
+          bank_reference?: string | null
+          booking_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          event_id?: string
+          id?: string
+          owner_id?: string
+          paid_at?: string
+          proof_hash?: string
+          proof_path?: string
+          request_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_submissions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_submissions_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
@@ -619,10 +787,28 @@ export type Database = {
     }
     Functions: {
       booking_by_token: { Args: { _token_hash: string }; Returns: Json }
+      booking_finances: { Args: { _token_hash: string }; Returns: Json }
       create_booking: {
         Args: {
           _code: string
           _contact: string
+          _guest_count: number
+          _guest_name: string
+          _idempotency_key: string
+          _organization: string
+          _request_hash: string
+          _slug: string
+          _table_ids: string[]
+          _token_hash: string
+        }
+        Returns: Json
+      }
+      create_booking_v2: {
+        Args: {
+          _code: string
+          _contact: string
+          _expected_total: number
+          _expected_version: number
           _guest_count: number
           _guest_name: string
           _idempotency_key: string
@@ -646,6 +832,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      manager_cancel_booking: {
+        Args: { _booking_id: string; _note: string }
+        Returns: Json
+      }
       public_event: { Args: { _slug: string }; Returns: Json }
       publish_event: {
         Args: { _event_id: string; _expected_version: number }
@@ -655,8 +845,39 @@ export type Database = {
         Args: { _key: string; _max: number; _window_seconds: number }
         Returns: boolean
       }
+      record_manual_refund: {
+        Args: {
+          _amount: number
+          _booking_id: string
+          _note: string
+          _paid_at: string
+          _reference: string
+          _request_id: string
+        }
+        Returns: Json
+      }
       request_cancellation: {
         Args: { _reason: string; _token_hash: string }
+        Returns: Json
+      }
+      review_payment: {
+        Args: {
+          _approve: boolean
+          _id: string
+          _note: string
+          _reference: string
+        }
+        Returns: Json
+      }
+      submit_payment: {
+        Args: {
+          _amount: number
+          _hash: string
+          _paid_at: string
+          _path: string
+          _request_id: string
+          _token_hash: string
+        }
         Returns: Json
       }
     }

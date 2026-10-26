@@ -12,7 +12,15 @@ type PaymentDatabase = Omit<Database, "public"> & {
       payment_submissions: Relation<PaymentSubmission>;
       manual_refunds: Relation<Refund>;
     };
-    Functions: Database["public"]["Functions"] & {
+    Functions: Omit<
+      Database["public"]["Functions"],
+      | "create_booking_v2"
+      | "booking_finances"
+      | "submit_payment"
+      | "review_payment"
+      | "record_manual_refund"
+      | "manager_cancel_booking"
+    > & {
       create_booking_v2: Rpc<
         Database["public"]["Functions"]["create_booking"]["Args"] & {
           _expected_total: number;
